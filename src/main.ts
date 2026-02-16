@@ -168,29 +168,79 @@ async function refreshSyncStatus() {
 
 type SyncTarget = "save" | "mods" | "both";
 
-async function doSyncPull(target: SyncTarget = "both") {
+const modalOverlay = document.getElementById("modal-overlay") as HTMLElement;
+const modalBody = document.getElementById("modal-body") as HTMLElement;
+const modalCancel = document.getElementById("modal-cancel") as HTMLElement;
+const modalForce = document.getElementById("modal-force") as HTMLElement;
+
+function showModal(body: string, confirmLabel = "Upload anyway"): Promise<boolean> {
+  return new Promise((resolve) => {
+    modalBody.textContent = body;
+    modalForce.textContent = confirmLabel;
+    modalOverlay.classList.remove("hidden");
+
+    function cleanup() {
+      modalOverlay.classList.add("hidden");
+      modalCancel.removeEventListener("click", onCancel);
+      modalForce.removeEventListener("click", onForce);
+    }
+    function onCancel() { cleanup(); resolve(false); }
+    function onForce() { cleanup(); resolve(true); }
+
+    modalCancel.addEventListener("click", onCancel);
+    modalForce.addEventListener("click", onForce);
+  });
+}
+
+async function doSyncPull(target: SyncTarget = "both", force = false) {
   setStatus(target === "both" ? "Fetching..." : `Fetching ${target}...`);
   try {
     const result = await invoke<{ ok: boolean; message: string }>("do_sync_pull", {
       target: target === "both" ? undefined : target,
+      force: force || undefined,
     });
     setStatus(result.message);
     await refreshSyncStatus();
   } catch (e) {
-    setStatus("Error: " + String(e), true);
+    const msg = String(e);
+    if (msg.includes("PROGRESS_WARNING:")) {
+      const warningText = msg.replace("PROGRESS_WARNING:", "").trim();
+      setStatus("");
+      const confirmed = await showModal(warningText, "Fetch anyway");
+      if (confirmed) {
+        await doSyncPull(target, true);
+      } else {
+        setStatus("Fetch cancelled.");
+      }
+    } else {
+      setStatus("Error: " + msg, true);
+    }
   }
 }
 
-async function doSyncPush(target: SyncTarget = "both") {
+async function doSyncPush(target: SyncTarget = "both", force = false) {
   setStatus(target === "both" ? "Uploading..." : `Uploading ${target}...`);
   try {
     const result = await invoke<{ ok: boolean; message: string }>("do_sync_push", {
       target: target === "both" ? undefined : target,
+      force: force || undefined,
     });
     setStatus(result.message);
     await refreshSyncStatus();
   } catch (e) {
-    setStatus("Error: " + String(e), true);
+    const msg = String(e);
+    if (msg.includes("PROGRESS_WARNING:")) {
+      const warningText = msg.replace("PROGRESS_WARNING:", "").trim();
+      setStatus("");
+      const confirmed = await showModal(warningText);
+      if (confirmed) {
+        await doSyncPush(target, true);
+      } else {
+        setStatus("Upload cancelled.");
+      }
+    } else {
+      setStatus("Error: " + msg, true);
+    }
   }
 }
 

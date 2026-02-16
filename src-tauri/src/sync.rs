@@ -97,9 +97,9 @@ fn replace_dir_with(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn sync_pull(config: &SyncConfig, target: SyncTarget) -> Result<String, String> {
+pub fn sync_pull(config: &SyncConfig, target: SyncTarget, force: bool) -> Result<String, String> {
     if crate::supabase_sync::use_supabase(config) {
-        return crate::supabase_sync::sync_pull_supabase(config, target);
+        return crate::supabase_sync::sync_pull_supabase(config, target, force);
     }
     let save_path = config
         .save_path
@@ -269,9 +269,9 @@ pub fn save_config(config: &SyncConfig) -> Result<(), String> {
     Ok(())
 }
 
-pub fn sync_push(config: &SyncConfig, target: SyncTarget) -> Result<String, String> {
+pub fn sync_push(config: &SyncConfig, target: SyncTarget, force: bool) -> Result<String, String> {
     if crate::supabase_sync::use_supabase(config) {
-        return crate::supabase_sync::sync_push_supabase(config, target);
+        return crate::supabase_sync::sync_push_supabase(config, target, force);
     }
     let save_path = config
         .save_path

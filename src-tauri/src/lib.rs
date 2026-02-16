@@ -27,18 +27,20 @@ fn get_sync_status() -> Result<sync::SyncStatus, String> {
 }
 
 #[tauri::command]
-fn do_sync_pull(target: Option<SyncTarget>) -> Result<SyncResult, String> {
+fn do_sync_pull(target: Option<SyncTarget>, force: Option<bool>) -> Result<SyncResult, String> {
     let config = load_config()?;
     let target = target.unwrap_or(SyncTarget::Both);
-    let message = sync_pull(&config, target)?;
+    let force = force.unwrap_or(false);
+    let message = sync_pull(&config, target, force)?;
     Ok(SyncResult { ok: true, message })
 }
 
 #[tauri::command]
-fn do_sync_push(target: Option<SyncTarget>) -> Result<SyncResult, String> {
+fn do_sync_push(target: Option<SyncTarget>, force: Option<bool>) -> Result<SyncResult, String> {
     let config = load_config()?;
     let target = target.unwrap_or(SyncTarget::Both);
-    let message = sync_push(&config, target)?;
+    let force = force.unwrap_or(false);
+    let message = sync_push(&config, target, force)?;
     Ok(SyncResult { ok: true, message })
 }
 

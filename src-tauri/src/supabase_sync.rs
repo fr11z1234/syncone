@@ -1,10 +1,54 @@
-//! Supabase Storage: upload/download Save.zip og Mods.zip.
+//! Supabase Storage: upload/download Save.zip and Mods.zip.
 
 use crate::sync::{clear_dir, get_latest_mtime_recursive, SyncConfig, SyncTarget};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Money.json structure (we only need LifetimeEarnings for progress check).
+#[derive(Deserialize)]
+struct MoneyData {
+    #[serde(rename = "LifetimeEarnings")]
+    lifetime_earnings: Option<f64>,
+}
+
+/// Returns the maximum LifetimeEarnings found in any SaveGame_*/Money.json under the save root.
+/// Used to prevent uploading a save that is behind the cloud (progress can't go backwards).
+fn max_lifetime_earnings_from_save_dir(save_root: &Path) -> Option<f64> {
+    // Also check if Money.json exists directly in save_root (flat save structure).
+    if let Ok(bytes) = fs::read(save_root.join("Money.json")) {
+        if let Ok(data) = serde_json::from_slice::<MoneyData>(&bytes) {
+            if let Some(v) = data.lifetime_earnings {
+                return Some(v);
+            }
+        }
+    }
+
+    // Otherwise scan SaveGame_* subdirectories.
+    let dir = fs::read_dir(save_root).ok()?;
+    let mut max_val = None::<f64>;
+    for entry in dir.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if !name_str.starts_with("SaveGame_") || !entry.path().is_dir() {
+            continue;
+        }
+        let money_path = entry.path().join("Money.json");
+        let bytes = match fs::read(&money_path) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let data: MoneyData = match serde_json::from_slice(&bytes) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        if let Some(v) = data.lifetime_earnings {
+            max_val = Some(max_val.map_or(v, |m| m.max(v)));
+        }
+    }
+    max_val
+}
 
 pub(crate) fn use_supabase(config: &SyncConfig) -> bool {
     config
@@ -180,7 +224,7 @@ fn supabase_object_mtimes(
     Ok((save_ts, mods_ts))
 }
 
-pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget) -> Result<String, String> {
+pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget, force: bool) -> Result<String, String> {
     let save_path = config.save_path.as_ref().ok_or("Save path is not set")?;
     let mods_path = config.mods_path.as_ref().ok_or("Mods path is not set")?;
     let url = config.supabase_url.as_ref().ok_or("Supabase URL is missing")?;
@@ -206,6 +250,34 @@ pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget) -> Result<Str
             };
             if should_pull {
                 let data = supabase_download(url, key, bucket, "Save.zip")?;
+
+                // Unless force, check if local save is more advanced than the cloud version.
+                if !force {
+                    let temp_dir = std::env::temp_dir().join(format!(
+                        "syncone_pull_check_{}",
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis()
+                    ));
+                    let _ = fs::create_dir_all(&temp_dir);
+                    if unzip_to_dir(&data, &temp_dir).is_ok() {
+                        let cloud_max = max_lifetime_earnings_from_save_dir(&temp_dir);
+                        let local_max = max_lifetime_earnings_from_save_dir(local_save);
+                        let _ = fs::remove_dir_all(&temp_dir);
+                        if let (Some(local_val), Some(cloud_val)) = (local_max, cloud_max) {
+                            if local_val > cloud_val {
+                                return Err(format!(
+                                    "PROGRESS_WARNING:The cloud save appears to be behind your local save.\n\nYour lifetime earnings: {:.0}\nCloud lifetime earnings: {:.0}\n\nFetching would overwrite your more advanced local save.",
+                                    local_val, cloud_val
+                                ));
+                            }
+                        }
+                    } else {
+                        let _ = fs::remove_dir_all(&temp_dir);
+                    }
+                }
+
                 unzip_to_dir(&data, local_save)?;
                 messages.push("Save fetched from Supabase.");
             }
@@ -238,7 +310,7 @@ pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget) -> Result<Str
     }
 }
 
-pub fn sync_push_supabase(config: &SyncConfig, target: SyncTarget) -> Result<String, String> {
+pub fn sync_push_supabase(config: &SyncConfig, target: SyncTarget, force: bool) -> Result<String, String> {
     let save_path = config.save_path.as_ref().ok_or("Save path is not set")?;
     let mods_path = config.mods_path.as_ref().ok_or("Mods path is not set")?;
     let url = config.supabase_url.as_ref().ok_or("Supabase URL is missing")?;
@@ -250,6 +322,35 @@ pub fn sync_push_supabase(config: &SyncConfig, target: SyncTarget) -> Result<Str
     let mut messages = Vec::new();
 
     if (target == SyncTarget::Save || target == SyncTarget::Both) && local_save.exists() {
+        // Unless force=true, check LifetimeEarnings to prevent uploading a save that is behind the cloud.
+        if !force {
+        if let Ok(cloud_bytes) = supabase_download(url, key, bucket, "Save.zip") {
+            let temp_dir = std::env::temp_dir().join(format!(
+                "syncone_check_{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ));
+            let _ = fs::create_dir_all(&temp_dir);
+            if unzip_to_dir(&cloud_bytes, &temp_dir).is_ok() {
+                let cloud_max = max_lifetime_earnings_from_save_dir(&temp_dir);
+                let local_max = max_lifetime_earnings_from_save_dir(local_save);
+                let _ = fs::remove_dir_all(&temp_dir);
+                if let (Some(local_val), Some(cloud_val)) = (local_max, cloud_max) {
+                    if local_val < cloud_val {
+                        return Err(format!(
+                            "PROGRESS_WARNING:Your local save appears to be behind the cloud version.\n\nYour lifetime earnings: {:.0}\nCloud lifetime earnings: {:.0}\n\nUploading would overwrite a more advanced save.",
+                            local_val, cloud_val
+                        ));
+                    }
+                }
+            } else {
+                let _ = fs::remove_dir_all(&temp_dir);
+            }
+        }
+        } // end if !force
+
         let data = zip_dir(local_save)?;
         supabase_upload(url, key, bucket, "Save.zip", &data)?;
         messages.push("Save uploaded to Supabase.");

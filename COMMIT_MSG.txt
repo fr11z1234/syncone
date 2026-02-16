@@ -1,0 +1,11 @@
+v0.2.0: individual sync, progress warnings, modal UI
+
+- Sync Save and Mods individually (per-card Fetch/Upload buttons)
+- LifetimeEarnings progress check before upload and fetch:
+  warns if your save is behind (upload) or ahead (fetch) of the cloud
+- Warning shown in a modal with "Upload/Fetch anyway" or "Cancel"
+- Force flag to bypass the check when confirmed
+- Banner with version number (v0.2.0) for quick build identification
+- All UI text translated to English
+- Path input fields widened to show more of the path
+- Modal overlay with styled warning dialog

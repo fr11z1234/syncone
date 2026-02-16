@@ -12,7 +12,7 @@
     <main class="container">
       <header class="banner">
         <div class="banner-overlay"></div>
-        <h1 class="banner-title">SyncONE</h1>
+        <h1 class="banner-title">SyncONE <span class="banner-version">v0.2.0</span></h1>
         <p class="banner-tagline">Sync your game saves and mods with friends</p>
       </header>
 
@@ -123,5 +123,16 @@
         </p>
       </section>
     </main>
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal">
+        <p class="modal-title">Warning</p>
+        <p class="modal-body" id="modal-body"></p>
+        <div class="modal-actions">
+          <button type="button" id="modal-cancel" class="modal-btn">Cancel</button>
+          <button type="button" id="modal-force" class="modal-btn modal-btn-danger">Upload anyway</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
