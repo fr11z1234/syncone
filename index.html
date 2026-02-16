@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SyncONE – Schedule I sync</title>
+    <link rel="icon" type="image/jpeg" href="https://static0.gamerantimages.com/wordpress/wp-content/uploads/2025/05/schedule-1-screenshot-uncle-nelson.jpeg" />
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <header class="banner">
+        <div class="banner-overlay"></div>
+        <h1 class="banner-title">SyncONE</h1>
+        <p class="banner-tagline">Sync your game saves and mods with friends</p>
+      </header>
+
+      <section class="paths">
+        <h2>Paths</h2>
+        <p class="hint">Choose your save and mods folders, then either Supabase (recommended) or a cloud folder.</p>
+
+        <label>
+          <span>Save folder</span>
+          <div class="row input-row">
+            <input id="save-path" type="text" placeholder="C:\...\Schedule I\Saves\ID" />
+            <button type="button" id="browse-save">Browse</button>
+          </div>
+        </label>
+
+        <label>
+          <span>Mods folder</span>
+          <div class="row input-row">
+            <input id="mods-path" type="text" placeholder="C:\...\Schedule I\mods" />
+            <button type="button" id="browse-mods">Browse</button>
+          </div>
+        </label>
+
+        <h3 class="subsection">Supabase (recommended)</h3>
+        <p class="hint">Create a project at supabase.com, add a Storage bucket, and enter the details below. No Google Drive required.</p>
+        <label>
+          <span>Supabase URL</span>
+          <div class="row input-row">
+            <input id="supabase-url" type="text" placeholder="https://xxx.supabase.co" autocomplete="off" />
+          </div>
+        </label>
+        <label>
+          <span>Supabase key (anon or service_role)</span>
+          <div class="row input-row">
+            <input id="supabase-key" type="password" placeholder="eyJ..." autocomplete="off" />
+          </div>
+        </label>
+        <label>
+          <span>Bucket name</span>
+          <div class="row input-row">
+            <input id="bucket-name" type="text" placeholder="schedule-sync" autocomplete="off" />
+          </div>
+        </label>
+
+        <h3 class="subsection">Alternative: Cloud folder</h3>
+        <p class="hint">If not using Supabase: pick a folder that syncs with Google Drive / OneDrive.</p>
+        <label>
+          <span>Cloud folder</span>
+          <div class="row input-row">
+            <input id="cloud-path" type="text" placeholder="G:\My Drive\ScheduleISync" />
+            <button type="button" id="browse-cloud">Browse</button>
+          </div>
+        </label>
+
+        <button type="button" id="save-config" class="primary">Save settings</button>
+      </section>
+
+      <section class="sync">
+        <h2>Synchronization</h2>
+        <p class="hint">On startup: fetch latest from cloud. When you're done playing: upload to cloud.</p>
+        <p class="hint status-explainer">"Local" = last modified time of the selected folder <strong>on this PC</strong>. Check that the path under Save/Mods points to the right folder.</p>
+
+        <div class="status-cards" id="sync-status-cards">
+          <div class="status-card" data-type="save">
+            <div class="status-card-title">Save</div>
+            <div class="status-card-path" id="save-path-used" title="Path used for Local on this PC"></div>
+            <div class="status-card-times">
+              <span class="status-time local">Local: <em id="save-local-time">–</em></span>
+              <span class="status-time cloud">Cloud: <em id="save-cloud-time">–</em></span>
+            </div>
+            <div class="status-badge" id="save-badge"></div>
+            <div class="status-card-actions">
+              <button type="button" class="card-fetch" data-target="save">Fetch</button>
+              <button type="button" class="card-upload" data-target="save">Upload</button>
+            </div>
+          </div>
+          <div class="status-card" data-type="mods">
+            <div class="status-card-title">Mods</div>
+            <div class="status-card-path" id="mods-path-used" title="Path used for Local on this PC"></div>
+            <div class="status-card-times">
+              <span class="status-time local">Local: <em id="mods-local-time">–</em></span>
+              <span class="status-time cloud">Cloud: <em id="mods-cloud-time">–</em></span>
+            </div>
+            <div class="status-badge" id="mods-badge"></div>
+            <div class="status-card-actions">
+              <button type="button" class="card-fetch" data-target="mods">Fetch</button>
+              <button type="button" class="card-upload" data-target="mods">Upload</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="refresh-status" class="link-btn">Refresh status</button>
+
+        <div class="row sync-buttons">
+          <button type="button" id="sync-pull">Fetch all from cloud</button>
+          <button type="button" id="sync-push" class="primary">Upload all to cloud</button>
+        </div>
+        <p id="sync-status" class="status"></p>
+      </section>
+
+      <section class="startup">
+        <label class="checkbox-label">
+          <input type="checkbox" id="run-at-startup" />
+          <span>Run SyncONE at Windows startup (auto-fetch latest save)</span>
+        </label>
+        <p class="hint">
+          Add SyncONE to Startup by placing a shortcut in the Startup folder:
+          <button type="button" id="open-startup" class="link-btn">Open Startup folder</button>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
