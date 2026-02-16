@@ -1,51 +1,51 @@
-# Syncone
+# SyncONE
 
-Desktop-app der synkroniserer **Schedule I** saves og mods til en fælles cloud-mappe (fx Google Drive), så I ikke behøver at vente på lobby-ejeren for at få det seneste save.
+Desktop app that syncs **Schedule I** saves and mods to a shared cloud (e.g. Supabase Storage or a folder synced with Google Drive), so your group always has the latest save without depending on the lobby host.
 
-## Sådan virker det
+## How it works
 
-1. **Vælg stier** i appen:
-   - **Save-mappe**: den konkrete save-mappe (fx `C:\Users\...\AppData\LocalLow\TVGS\Schedule I\Saves\<ID>`)
-   - **Mods-mappe**: Schedule I mods (fx `C:\Program Files (x86)\Steam\steamapps\common\Schedule I\mods`)
-   - **Cloud-mappe**: en mappe der synces med Google Drive (eller anden cloud) – alle i gruppen bruger den samme mappe
+1. **Set paths** in the app:
+   - **Save folder**: your Schedule I save folder (e.g. `C:\Users\...\AppData\LocalLow\TVGS\Schedule I\Saves\<ID>`)
+   - **Mods folder**: Schedule I mods (e.g. `C:\Program Files (x86)\Steam\steamapps\common\Schedule I\mods`)
+   - **Cloud**: either **Supabase** (recommended – one bucket, `Save.zip` and `Mods.zip`) or a **cloud folder** that syncs with Google Drive / OneDrive
 
-2. **Ved opstart**: Åbn Syncone → den henter automatisk nyeste save/mod fra cloud, hvis der er en nyere version.
+2. **On startup**: Open SyncONE → it automatically fetches the latest save/mods from the cloud if a newer version exists.
 
-3. **Efter I er færdige med at spille**: Klik **Upload til cloud** → så kan de andre hente det seneste når de starter.
+3. **When you’re done playing**: Click **Upload to cloud** (or upload Save/Mods individually from each card) so others can get the latest when they start.
 
-I cloud-mappen opretter appen to undermapper: `Save` og `Mods`. Kun disse synces; resten af drevet påvirkes ikke.
+You can sync **Save** and **Mods** separately or both at once.
 
-## Krav
+## Requirements
 
-- **Node.js** og **npm** (til at bygge frontend)
-- **Rust** (til at bygge Tauri-appen): [rustup.rs](https://rustup.rs)
-- **Windows**: Visual Studio Build Tools (C++ workload) eller “Desktop development with C++”
+- **Node.js** and **npm** (to build the frontend)
+- **Rust** (to build the Tauri app): [rustup.rs](https://rustup.rs)
+- **Windows**: Visual Studio Build Tools (C++ workload) or “Desktop development with C++”
 
-## Byg og kør
+## Build and run
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-Til at lave en installerbar .exe:
+To build an installable .exe:
 
 ```bash
 npm run tauri build
 ```
 
-Output ligger i `src-tauri/target/release/` (`.exe` og evt. installer under `bundle/`).
+Output is in `src-tauri/target/release/` (`.exe` and installer under `bundle/`).
 
-## Kør ved Windows-opstart
+## Run at Windows startup
 
-1. Sæt flueben ved “Kør Syncone ved Windows-opstart”.
-2. Klik **Åbn Opstart-mappe**.
-3. Opret et genvej til `Syncone.exe` (fra `src-tauri/target/release/` eller fra installeren) og læg det i den åbnede Opstart-mappe.
+1. Check “Run SyncONE at Windows startup” in the app.
+2. Click **Open Startup folder**.
+3. Create a shortcut to `Syncone.exe` (from `src-tauri/target/release/` or from the installer) and put it in the opened Startup folder.
 
-Så henter Syncone automatisk det nyeste save når PC’en starter (hvis Google Drive/cloud allerede er synced).
+SyncONE will then automatically fetch the latest save when the PC starts (once your cloud/Supabase is available).
 
-## Teknisk
+## Technical
 
 - **Tauri 2** (Rust + web UI)
-- Config gemmes i `%APPDATA%\Syncone\syncone_config.json`
-- Sync baserer sig på “senest ændret” (mtime): nyere filer i cloud overskriver lokale og omvendt ved upload.
+- Config is stored in `%APPDATA%\Syncone\syncone_config.json`
+- Sync is based on “last modified” (mtime): newer files in the cloud overwrite local, and vice versa on upload.
