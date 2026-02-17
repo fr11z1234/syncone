@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -256,6 +257,15 @@ function initStartupToggle() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  const versionEl = document.querySelector("#app-version");
+  if (versionEl) {
+    try {
+      const v = await getVersion();
+      versionEl.textContent = "v" + v;
+    } catch {
+      versionEl.textContent = "v?";
+    }
+  }
   await loadConfig();
   bindBrowse(browseSaveBtn, savePathEl);
   bindBrowse(browseModsBtn, modsPathEl);

@@ -1,6 +1,7 @@
 //! Sync logic: compare folder mtimes and copy save/mod folders to/from cloud.
 
 use serde::{Deserialize, Serialize};
+use chrono::Local;
 use std::io::Write;
 use std::fs;
 use std::path::Path;
@@ -91,6 +92,50 @@ pub(crate) fn inject_has_exited_rv(save_root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Updates `OrganisationName` in any `SaveGame_*/Game.json` under the save root.
+/// This makes the save easy to recognize in-game after fetch/push.
+pub(crate) fn set_synced_organisation_name(save_root: &Path) -> Result<(), String> {
+    let label = format!("Synced - {}", Local::now().format("%Y-%m-%d %H:%M"));
+
+    fn update_game_json(game_json_path: &Path, label: &str) -> Result<(), String> {
+        if !game_json_path.exists() {
+            return Ok(());
+        }
+        let bytes = fs::read(game_json_path).map_err(|e| e.to_string())?;
+        let mut value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{} is not a JSON object", game_json_path.display()))?;
+        obj.insert("OrganisationName".to_string(), serde_json::Value::String(label.to_string()));
+
+        // Keep the file nicely formatted (4-space indent like the game's JSON).
+        let mut buf = Vec::new();
+        let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
+        let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+        value.serialize(&mut ser).map_err(|e| e.to_string())?;
+        buf.push(b'\n');
+        fs::write(game_json_path, buf).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    // Flat structure (if present)
+    let _ = update_game_json(&save_root.join("Game.json"), &label);
+
+    // Standard structure: SaveGame_*/Game.json
+    if let Ok(dir) = fs::read_dir(save_root) {
+        for entry in dir.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if !name_str.starts_with("SaveGame_") || !entry.path().is_dir() {
+                continue;
+            }
+            let _ = update_game_json(&entry.path().join("Game.json"), &label);
+        }
+    }
+
+    Ok(())
+}
+
 /// Remove directory contents and the directory itself, then recreate empty dir (so we can replace with cloud version).
 pub(crate) fn clear_dir(path: &Path) -> std::io::Result<()> {
     if path.exists() {
@@ -145,6 +190,7 @@ pub fn sync_pull(config: &SyncConfig, target: SyncTarget, force: bool) -> Result
             if cloud_t > local_t {
                 replace_dir_with(&cloud_save, local_save).map_err(|e| e.to_string())?;
                 inject_has_exited_rv(local_save)?;
+                set_synced_organisation_name(local_save)?;
                 messages.push("Save fetched from cloud.");
             }
         }
@@ -311,6 +357,7 @@ pub fn sync_push(config: &SyncConfig, target: SyncTarget, force: bool) -> Result
     let mut messages = Vec::new();
 
     if (target == SyncTarget::Save || target == SyncTarget::Both) && local_save.exists() {
+        set_synced_organisation_name(local_save)?;
         replace_dir_with(local_save, &cloud_save).map_err(|e| e.to_string())?;
         messages.push("Save uploaded to cloud.");
     }

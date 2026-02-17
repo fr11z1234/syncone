@@ -1,6 +1,6 @@
 //! Supabase Storage: upload/download Save.zip and Mods.zip.
 
-use crate::sync::{clear_dir, get_latest_mtime_recursive, SyncConfig, SyncTarget};
+use crate::sync::{clear_dir, get_latest_mtime_recursive, set_synced_organisation_name, SyncConfig, SyncTarget};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -280,6 +280,7 @@ pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget, force: bool) 
 
                 unzip_to_dir(&data, local_save)?;
                 crate::sync::inject_has_exited_rv(local_save)?;
+                set_synced_organisation_name(local_save)?;
                 messages.push("Save fetched from Supabase.");
             }
         }
@@ -351,6 +352,9 @@ pub fn sync_push_supabase(config: &SyncConfig, target: SyncTarget, force: bool) 
             }
         }
         } // end if !force
+
+        // Stamp the save name so it's easy to recognize in-game.
+        let _ = set_synced_organisation_name(local_save);
 
         let data = zip_dir(local_save)?;
         supabase_upload(url, key, bucket, "Save.zip", &data)?;
