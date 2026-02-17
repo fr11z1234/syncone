@@ -279,6 +279,7 @@ pub fn sync_pull_supabase(config: &SyncConfig, target: SyncTarget, force: bool) 
                 }
 
                 unzip_to_dir(&data, local_save)?;
+                crate::sync::inject_has_exited_rv(local_save)?;
                 messages.push("Save fetched from Supabase.");
             }
         }

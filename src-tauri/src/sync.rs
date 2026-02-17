@@ -72,6 +72,25 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Writes HasExitedRV.json into each SaveGame_*/Variables/ under save_root.
+/// Helps avoid Schedule I "stuck on Syncing" for non-hosts when loading a synced save (community fix).
+pub(crate) fn inject_has_exited_rv(save_root: &Path) -> Result<(), String> {
+    const HAS_EXITED_RV_JSON: &str = r#"{"DataType": "VariableData","DataVersion": 0,"GameVersion": "0.0.0","Name": "HasExitedRV","Value": "True"}"#;
+    let dir = fs::read_dir(save_root).map_err(|e| e.to_string())?;
+    for entry in dir.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if !name_str.starts_with("SaveGame_") || !entry.path().is_dir() {
+            continue;
+        }
+        let variables_dir = entry.path().join("Variables");
+        fs::create_dir_all(&variables_dir).map_err(|e| e.to_string())?;
+        let file_path = variables_dir.join("HasExitedRV.json");
+        fs::write(&file_path, HAS_EXITED_RV_JSON).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Remove directory contents and the directory itself, then recreate empty dir (so we can replace with cloud version).
 pub(crate) fn clear_dir(path: &Path) -> std::io::Result<()> {
     if path.exists() {
@@ -125,6 +144,7 @@ pub fn sync_pull(config: &SyncConfig, target: SyncTarget, force: bool) -> Result
             };
             if cloud_t > local_t {
                 replace_dir_with(&cloud_save, local_save).map_err(|e| e.to_string())?;
+                inject_has_exited_rv(local_save)?;
                 messages.push("Save fetched from cloud.");
             }
         }

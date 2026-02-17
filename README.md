@@ -44,6 +44,10 @@ Output is in `src-tauri/target/release/` (`.exe` and installer under `bundle/`).
 
 SyncONE will then automatically fetch the latest save when the PC starts (once your cloud/Supabase is available).
 
+## Non-hosts stuck on "Syncing" after pulling the save?
+
+If people who **join** get stuck on "Syncing" the first time they launch after a pull, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**. SyncONE now injects the usual fix (`HasExitedRV.json`) into the save after every pull to reduce this.
+
 ## Technical
 
 - **Tauri 2** (Rust + web UI)
