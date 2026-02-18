@@ -1,6 +1,8 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 interface SyncConfig {
   save_path: string | null;
@@ -245,6 +247,32 @@ async function doSyncPush(target: SyncTarget = "both", force = false) {
   }
 }
 
+const UPDATE_CHECK_TIMEOUT_MS = 5_000;
+
+async function checkForAppUpdate() {
+  try {
+    const update = await Promise.race([
+      check(),
+      new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), UPDATE_CHECK_TIMEOUT_MS)
+      ),
+    ]);
+    if (update) {
+      const confirmed = await showModal(
+        `A new version of SyncONE is available (${update.version}).\n\nClick "Update now" to download and install it. The app will restart automatically.`,
+        "Update now"
+      );
+      if (confirmed) {
+        setStatus("Downloading update...");
+        await update.downloadAndInstall();
+        await relaunch();
+      }
+    }
+  } catch {
+    // Silently ignore update check failures (e.g. no internet, timeout)
+  }
+}
+
 function initStartupToggle() {
   runAtStartupEl?.addEventListener("change", () => {
     localStorage.setItem("syncone_run_at_startup", String(runAtStartupEl.checked));
@@ -266,6 +294,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       versionEl.textContent = "v?";
     }
   }
+  // Run update check in background so app loads immediately; modal appears when check completes
+  void checkForAppUpdate();
+
   await loadConfig();
   bindBrowse(browseSaveBtn, savePathEl);
   bindBrowse(browseModsBtn, modsPathEl);
