@@ -193,14 +193,14 @@ function showModal(body: string, confirmLabel = "Upload anyway"): Promise<boolea
   });
 }
 
-async function doSyncPull(target: SyncTarget = "both", force = false) {
+async function doSyncPull(target: SyncTarget = "both", force = false, successMessage?: string) {
   setStatus(target === "both" ? "Fetching..." : `Fetching ${target}...`);
   try {
     const result = await invoke<{ ok: boolean; message: string }>("do_sync_pull", {
       target: target === "both" ? undefined : target,
       force: force || undefined,
     });
-    setStatus(result.message);
+    setStatus(successMessage && result.ok ? successMessage : result.message);
     await refreshSyncStatus();
   } catch (e) {
     const msg = String(e);
@@ -310,12 +310,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     cloudPathEl.value.trim();
   if (savePathEl.value.trim() && modsPathEl.value.trim() && hasCloud) {
     setStatus("Checking for updates...");
-    try {
-      const result = await invoke<{ ok: boolean; message: string }>("do_sync_pull");
-      setStatus(result.message);
-      await refreshSyncStatus();
-    } catch {
-      setStatus("");
-    }
+    await doSyncPull("both", false, "Auto pulled newest version on startup");
   }
 });

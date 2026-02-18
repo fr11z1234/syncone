@@ -1,6 +1,6 @@
 [package]
 name = "syncone"
-version = "1.5.0"
+version = "1.6.0"
 description = "Sync Schedule I saves and mods to cloud (e.g. Google Drive)"
 authors = ["MadsR"]
 edition = "2021"
